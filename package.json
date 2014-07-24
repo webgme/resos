@@ -1,0 +1,23 @@
+{
+    "name": "webgme-resos",
+    "version": "0.1.0",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/webgme/webgme-resos"
+    },
+    "license": "MIT",
+    "dependencies": {
+        "webgme": "https://github.com/webgme/webgme/tarball/master",
+        "requirejs": "=2.1.11"
+    },
+    "devDependencies": {
+    },
+    "engines": {
+        "node": ">=0.10.0"
+    },
+    "config": {
+    },
+    "scripts": {
+        "start": "node app.js"
+    }
+}
