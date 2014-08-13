@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   version="1.0"
+   width="2.1700001mm"
+   height="3.8mm"
+   id="svg2">
+  <metadata
+     id="metadata18">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <defs
+     id="defs4" />
+  <g
+     id="g6">
+    <path
+       d="m 4.0969489,3.690945 0,4.3922245 -2.7682087,1.9192915"
+       inkscape:connector-curvature="0"
+       id="path8"
+       style="fill:none;stroke:#d7f1fa;stroke-width:1.1811024px;stroke-linecap:round;stroke-linejoin:round;stroke-opacity:1;stroke-dasharray:none" />
+    <path
+       d="M 4.0969489,8.0831695 6.975886,10.03937"
+       inkscape:connector-curvature="0"
+       id="path10"
+       style="fill:none;stroke:#d7f1fa;stroke-width:1.1811024px;stroke-linecap:round;stroke-linejoin:round;stroke-opacity:1;stroke-dasharray:none" />
+    <path
+       d="m 1.1811024,6.0162403 5.8316931,0"
+       inkscape:connector-curvature="0"
+       id="path12"
+       style="fill:none;stroke:#d7f1fa;stroke-width:1.1811024px;stroke-linecap:round;stroke-linejoin:round;stroke-opacity:1;stroke-dasharray:none" />
+    <path
+       d="m 5.4625986,2.4360237 c 0,-0.6643701 -0.6274607,-1.2549213 -1.4025591,-1.2549213 -0.738189,0 -1.3656497,0.5905512 -1.3656497,1.2549213 0,0.7012795 0.6274607,1.2549213 1.3656497,1.2549213 0.7750984,0 1.4025591,-0.5536418 1.4025591,-1.2549213"
+       inkscape:connector-curvature="0"
+       id="path14"
+       style="fill:none;stroke:#d7f1fa;stroke-width:1.1811024px;stroke-linecap:round;stroke-linejoin:round;stroke-opacity:1;stroke-dasharray:none" />
+  </g>
+</svg>
