@@ -14,10 +14,12 @@ define([
     'js/Controls/ContextMenu',
     '../Lib/codemirror/codemirror',
     '../Lib/codemirror/clike',
+    '../Lib/jqgrid/js/i18n/grid.locale-en.js',
     '../Lib/jqgrid/js/jquery.jqGrid.min.js',
     'css!./ResosDecorator.DiagramDesignerWidget',
     'css!../Lib/codemirror/codemirror',
-    'css!../Lib/jqgrid/css/ui.jqgrid.css'
+    'css!../Lib/jqgrid/css/ui.jqgrid.css',
+    'css!../Lib/jqgrid/css/jquery-ui.theme.min.css'
     ], function (
                                                             CONSTANTS,
                                                           nodePropertyNames,
@@ -241,61 +243,125 @@ define([
 
             this.skinParts.$detailButton.show();
 
-            this.skinParts.$detailButton.on("click.showDialog", null, function (event) {
-                var dialog = $(scheduleDialogTemplate);
+            var dialog = $(scheduleDialogTemplate).modal({
+                show:false
+            });
 
-                dialog.on('shown.bs.modal', function () {
+            var partitionPortIds = currentNode.getChildrenIds();
+            var partitionList = '';
+            for (var i = 0; i < partitionPortIds.length; i++) {
+                var childId = partitionPortIds[i];
+                var childNode = self._control._client.getNode(childId);
+                var childNodeName = childNode.getAttribute('name');
+                var childNodeDuration = childNode.getAttribute('Duration');
+                var childNodePeriod = childNode.getAttribute('Period');
+                var currentNodeOffset = currentNode.getAttribute('NodeSchedule');
 
-                    var lastsel2;
-                    var tableOne = $('.tableOne', dialog);
-                    tableOne.jqGrid({
-                        datatype: "local",
-                        //height: 150,
-                        colNames: ['Id','Partition name', 'Offset'],
-                        colModel: [
-                            {name: 'id', index: 'id', width: 10},
-                            {name: 'partitionName', index: 'partitionName', width: 180, sorttype: "string", editable: true,editoptions:{size:"20",maxlength:"30"}},
-                            {name: 'offset', index: 'offset', width: 60, sorttype: "int"},
-                        ],
-                        onSelectRow: function(id){
-                            if(id && id!==lastsel2){
-                                tableOne.jqGrid('restoreRow',lastsel2);
-                                tableOne.jqGrid('editRow',id,true);
-                                lastsel2=id;
-                            }
-                        },
-                        multiselect: false,
-                        caption: "Partition"
-                    });
+                partitionList = partitionList.concat('PP',i,':',childNodeName,';');
+                //tableOne.jqGrid('addRowData', i + 1, {id:i, partitionName:childNodeName, offset:currentNodeOffset});
+            }
 
-                    var tableTwo = $('.tableTwo', dialog);
-                    tableTwo.jqGrid({
-                        datatype: "local",
-                        height: 150,
-                        colNames: ['Name', 'Period', 'Duration'],
-                        colModel: [
-                            {name: 'name', index: 'name', width: 180},
-                            {name: 'period', index: 'period', width: 90},
-                            {name: 'duration', index: 'duration', width: 90},
-                        ],
-                        multiselect: false,
-                        caption: "Available partitions"
-                    });
+            var prmDel={
+                onclickSubmit: function (options, rowid) {
+                    var $this = $(this),
+                        grid_id = $.jgrid.jqID(this.id),
+                        grid_p = this.p,
+                        newPage = grid_p.page;
 
-                    var partitionPortIds = currentNode.getChildrenIds();
-                    for (var i = 0; i <= partitionPortIds.length; i++) {
-                        var childId = partitionPortIds[i];
-                        var childNode = self._control._client.getNode(childId);
-                        var childNodeName = childNode.getAttribute('name');
-                        var childNodeDuration = childNode.getAttribute('Duration');
-                        var childNodePeriod = childNode.getAttribute('Period');
-                        var currentNodeOffset = currentNode.getAttribute('NodeSchedule');
+                    // reset the value of processing option to true to
+                    // skip the ajax request to 'clientArray'.
+                    options.processing = true;
 
-                        tableOne.jqGrid('addRowData', i + 1, {id:i, partitionName:childNodeName, offset:currentNodeOffset});
-                        tableTwo.jqGrid('addRowData', i + 1, {name:childNodeName, period:childNodePeriod, duration:childNodeDuration});
+                    // delete the row
+                    if (grid_p.treeGrid) {
+                        $this.jqGrid("delTreeNode", rowid);
+                    } else {
+                        $this.jqGrid("delRowData", rowid);
                     }
+                    $.jgrid.hideModal("#delmod" + grid_id, {
+                        gb: "#gbox_" + grid_id,
+                        jqm: options.jqModal,
+                        onClose: options.onClose
+                    });
+
+                    if (grid_p.lastpage > 1) {// on the multipage grid reload the grid
+                        if (grid_p.reccount === 0 && newPage === grid_p.lastpage) {
+                            // if after deliting there are no rows on the current page
+                            // which is the last page of the grid
+                            newPage--; // go to the previous page
+                        }
+                        // reload grid to make the row from the next page visable.
+                        $this.trigger("reloadGrid", [{page: newPage}]);
+                    }
+
+                    return true;
+                },
+                processing: true
+            };
+            var prmSearch={};
+            var prmView={};
+            var prmEdit ={};
+            var prmAdd={};
+
+            dialog.on('shown.bs.modal', function () {
+                var tableWrapper = $('div.tableWrapperOne', dialog);
+                tableWrapper.empty();
+                tableWrapper.append('<table id="tableOne"></table><div id="gridpager"></div>');
+
+                var tableOne = $('#tableOne', tableWrapper);
+
+                tableOne.jqGrid({
+                    datatype: 'local',//'clientSide',
+                    editurl:'clientArray',
+                    colNames: ['Id','Partition name', 'Offset'],
+                    colModel: [
+                        {name: 'id', index: 'id', width: 40},
+                        {name: 'partitionName', index: 'partitionName', width: 280,editable:true, edittype:"select",editoptions:{value:partitionList}},
+                        {name: 'offset', index: 'offset', width: 80, sorttype: "int",editable:true},
+                    ],
+                    multiselect: false,
+                    caption: "Partition",
+                    //cellEdit: true,
+                    //cellsubmit: 'clientArray',
+                    pager : '#gridpager',
+                    emptyrecords: "Nothing to display"
                 });
 
+                tableOne.jqGrid('navGrid','#gridpager',
+                    { view:false, del:true, add:false, refresh:false, search:false, edit:false},
+                    prmEdit,
+                    prmAdd,
+                    prmDel,
+                    prmSearch,
+                    prmView);
+                tableOne.jqGrid('inlineNav', '#gridpager', {addParams: {position: "last"}});
+
+                var nodeScheduleJson = currentNode.getAttribute('NodeSchedule');
+                if (nodeScheduleJson==='' ||nodeScheduleJson===undefined || nodeScheduleJson===null){
+                    nodeScheduleJson='[]';
+                }
+
+                var nodeSchedule = $.parseJSON(nodeScheduleJson);
+
+                if (nodeSchedule === undefined || nodeSchedule === null || nodeSchedule === -1){
+                    nodeSchedule = [];
+                }
+
+                for (var i = 0; i < nodeSchedule.length; i++) {
+                    tableOne.jqGrid('addRowData', i + 1, nodeSchedule[i]);
+                }
+            });
+
+            dialog.on('hide.bs.modal', function (e) {
+                var tableWrapper = $('div.tableWrapperOne', dialog);
+                var tableOne = $('#tableOne', tableWrapper);
+                var dataFromGrid = tableOne.jqGrid('getGridParam','data');
+                var jsonData = JSON.stringify(dataFromGrid);
+                self._control._client.setAttributes(gmeId, 'NodeSchedule', jsonData);
+                $('div.tableWrapperOne', dialog).empty();
+            });
+
+            this.skinParts.$detailButton.on("click.showDialog", null, function (event) {
                 dialog.modal('show');
 
                 event.stopPropagation();
