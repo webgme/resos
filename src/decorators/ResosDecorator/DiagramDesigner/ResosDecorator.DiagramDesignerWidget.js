@@ -19,7 +19,8 @@ define([
     'css!./ResosDecorator.DiagramDesignerWidget',
     'css!../Lib/codemirror/codemirror',
     'css!../Lib/jqgrid/css/ui.jqgrid.css',
-    'css!../Lib/jqgrid/css/jquery-ui.theme.min.css'
+    'css!../Lib/jqgrid/css/jquery-ui.theme.min.css',
+    'css!./ScheduleDialog.css'
     ], function (
                                                             CONSTANTS,
                                                           nodePropertyNames,
@@ -216,6 +217,8 @@ define([
                 event.preventDefault();
             });
         }
+
+        // Partition schedule
         else if (parentMetaGuid === '9f170e00-1852-44ca-bb17-5929e8763de4' && currentMetaName === 'Schedule')
         {
             var svgFile = 'DetailButton.svg';
@@ -311,7 +314,7 @@ define([
                 var tableOne = $('#tableOne', tableWrapper);
 
                 tableOne.jqGrid({
-                    datatype: 'local',//'clientSide',
+                    datatype: 'local',
                     editurl:'clientArray',
                     colNames: ['Id','Partition name', 'Offset'],
                     colModel: [
@@ -321,14 +324,12 @@ define([
                     ],
                     multiselect: false,
                     caption: "Partition",
-                    //cellEdit: true,
-                    //cellsubmit: 'clientArray',
                     pager : '#gridpager',
                     emptyrecords: "Nothing to display"
                 });
 
                 tableOne.jqGrid('navGrid','#gridpager',
-                    { view:false, del:true, add:false, refresh:false, search:false, edit:false},
+                    { view:false, del:true, add:false, refresh:false, search:false, edit:false },
                     prmEdit,
                     prmAdd,
                     prmDel,
@@ -337,7 +338,7 @@ define([
                 tableOne.jqGrid('inlineNav', '#gridpager', {addParams: {position: "last"}});
 
                 var nodeScheduleJson = currentNode.getAttribute('NodeSchedule');
-                if (nodeScheduleJson==='' ||nodeScheduleJson===undefined || nodeScheduleJson===null){
+                if (nodeScheduleJson==='' || nodeScheduleJson===undefined || nodeScheduleJson===null){
                     nodeScheduleJson='[]';
                 }
 
@@ -656,7 +657,7 @@ define([
                 });
             }
             while (len--) {
-                this._selfPatterns[pointerTargets[len][1]] = { "children": 0 };
+                this._selfPatterns[pointerTargets[len][1]] = { "children": 1 };
             }
         }
 

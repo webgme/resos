@@ -183,6 +183,93 @@ define(['js/Constants',
         }
     };
 
+    ResosDecoratorCore.prototype.getPortIDs = function () {
+        var client = this._control._client,
+            nodeObj = client.getNode(this._metaInfo[CONSTANTS.GME_ID]),
+            childrenIDs = [],
+            len,
+            gmeID = this._metaInfo[CONSTANTS.GME_ID],
+            hasAspect = this._aspect && this._aspect !== CONSTANTS.ASPECT_ALL && client.getMetaAspectNames(gmeID).indexOf(this._aspect) !== -1;
+
+        if (nodeObj) {
+            var currentNodeGuid = nodeObj.getGuid();
+            var currentMetaId = nodeObj.getBaseId();
+            var currentMetaNode = client.getNode(currentMetaId);
+            var currentMetaName = currentMetaNode.getAttribute('name');
+
+            var parentId = nodeObj.getParentId();
+            var parentNode = client.getNode(parentId);
+            var parentMetaId = parentNode.getBaseId();
+            var parentMetaNode = client.getNode(parentMetaId);
+            var parentMetaGuid = parentMetaNode.getGuid();
+
+            if (parentMetaGuid === '9f170e00-1852-44ca-bb17-5929e8763de4' && currentMetaName === 'ClusterConfigurationsRef'){
+                // 1: Get the referred configuration
+                var referTo = nodeObj.getPointer('referTo');
+                if (referTo!==undefined && referTo!==null && referTo.to!==null && referTo.to!==undefined && referTo!==''){
+                    var toId = referTo.to;
+                    nodeObj = client.getNode(toId);
+                }
+				
+				// 2: Get the allowedPorts
+                var parentChildrenIds = parentNode.getChildrenIds().slice(0);
+                for (var i = 0; i<parentChildrenIds.length; i++){
+                    var childrenNode = client.getNode(parentChildrenIds[i]);
+                    var childrenMetaId = childrenNode.getBaseId();
+                    var childrenMetaNode = client.getNode(childrenMetaId);
+                    var childrenMetaName = childrenMetaNode.getAttribute('name');
+                    if (childrenMetaName!=='ClusterConfigurationRef') {
+                        continue;
+                    }
+                    else{
+                        var referredConfiguration = childrenNode.getPointer('referTo');
+                        if (referredConfiguration!==undefined && referredConfiguration!==null && referredConfiguration.to!==null && referredConfiguration.to!==undefined && referredConfiguration!==''){
+                            var configurationId = referredConfiguration.to;
+                            var configurationNode = client.getNode(configurationId);
+                            if (configurationNode===null){
+                                continue;
+                            }
+                            var setNames = configurationNode.getSetNames();
+                            if (setNames===null || setNames.length<1) {
+                                continue;
+                            }
+                            var setName = setNames[0];
+                            var memberIds = configurationNode.getMemberIds(setName);
+                            if (memberIds!==null && memberIds.length>0) {
+                                childrenIDs = nodeObj.getChildrenIds().slice(0);
+                                //filter out the ones that are not part of the specified aspect
+                                len = childrenIDs.length;
+                                while (len--) {
+                                    if (hasAspect && !GMEConcepts.isValidTypeInAspect(childrenIDs[len], gmeID, this._aspect)) {
+                                        childrenIDs.splice(len, 1);
+                                    }
+                                    else if (memberIds.indexOf(childrenIDs[len]) === -1) {
+                                        childrenIDs.splice(len, 1);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            else {
+                childrenIDs = nodeObj.getChildrenIds().slice(0);
+
+                //filter out the ones that are not part of the specified aspect
+                if (hasAspect) {
+                    len = childrenIDs.length;
+                    while (len--) {
+                        if (!GMEConcepts.isValidTypeInAspect(childrenIDs[len], gmeID, this._aspect)) {
+                            childrenIDs.splice(len, 1);
+                        }
+                    }
+                }
+            }
+        }
+
+        return childrenIDs;
+    };
+
 
     /***** UPDATE THE PORTS OF THE NODE *****/
         ResosDecoratorCore.prototype._updatePorts = function () {
