@@ -1,17 +1,20 @@
-/*globals define, _, WebGMEGlobal*/
+/*globals define, _, WebGMEGlobal, angular*/
 
 define([
+    'angular',
     'js/Constants',
     'js/NodePropertyNames',
     'js/Widgets/DiagramDesigner/DiagramDesignerWidget.DecoratorBase',
     'js/Widgets/DiagramDesigner/DiagramDesignerWidget.Constants',
     'text!../Core/ResosDecorator.html',
     'text!./ScheduleDialog.html',
+    'text!./CodeEditorDialog.html',
     '../Core/ResosDecorator.Core',
     '../Core/ResosDecorator.Constants',
     'js/DragDrop/DragConstants',
     'js/DragDrop/DragHelper',
     'js/Controls/ContextMenu',
+    'isis-ui-components/simpleDialog/simpleDialog',
     '../Lib/codemirror/codemirror',
     '../Lib/codemirror/clike',
     '../Lib/jqgrid/js/i18n/grid.locale-en.js',
@@ -21,18 +24,20 @@ define([
     'css!../Lib/jqgrid/css/ui.jqgrid.css',
     'css!../Lib/jqgrid/css/jquery-ui.theme.min.css',
     'css!./ScheduleDialog.css'
-    ], function (
-                                                            CONSTANTS,
+    ], function (                                         ng,
+                                                          CONSTANTS,
                                                           nodePropertyNames,
                                                           DiagramDesignerWidgetDecoratorBase,
                                                           DiagramDesignerWidgetConstants,
                                                           resosDecoratorTemplate,
                                                           scheduleDialogTemplate,
+                                                          codeEditorDialogTemplate,
                                                           ResosDecoratorCore,
                                                           ResosDecoratorConstants,
                                                           DragConstants,
                                                           DragHelper,
                                                           ContextMenu,
+                                                          simpleDialog,
                                                           CodeMirror
                                                         ) {
 
@@ -47,9 +52,15 @@ define([
         DECORATOR_ID = "ResosDecoratorDiagramDesignerWidget",
         PORT_CONTAINER_OFFSET_Y = 15,
         ACCEPT_DROPPABLE_CLASS = 'accept-droppable',
-        DRAGGABLE_MOUSE = 'DRAGGABLE';
+        DRAGGABLE_MOUSE = 'DRAGGABLE',
+        ngCodeEditorDialog,
+        rootScope;
 
-
+    angular.module( 'resos.ui.idleditor', ['isis.ui.simpleDialog'] ).run( function ( $simpleDialog, $templateCache, $rootScope ) {
+        ngCodeEditorDialog = $simpleDialog;
+        $templateCache.put('CodeEditorDialogTemplate.html', codeEditorDialogTemplate);
+        rootScope = $rootScope;
+    } );
 
     ResosDecoratorDiagramDesignerWidget = function (options) {
         var opts = _.extend( {}, options);
@@ -77,25 +88,7 @@ define([
     /**** Override from DiagramDesignerWidgetDecoratorBase ****/
     ResosDecoratorDiagramDesignerWidget.prototype.$DOMBase = $(resosDecoratorTemplate);
 
-    ResosDecoratorDiagramDesignerWidget.prototype._detailDialogUIDOMBase =
-        $('<div class="modal fade ' + ResosDecoratorConstants.DETAILDIALOG_CLASS + '" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">' +
-            '<div class="modal-dialog">' +
-            '<div class="modal-content">' +
-            '<div class="modal-header">' +
-            '<button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>' +
-            '<h4 class="modal-title" >Modal title</h4>' +
-            '</div>' +
-            '<div class="modal-body">' +
-            '<textarea class="codeEditor">Kukucs</textarea>' +
-            '<table class="messageWindow"></table>' +
-            '</div>' +
-            '<div class="modal-footer">' +
-            '<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>' +
-            '<button type="button" class="btn btn-primary">Save changes</button>' +
-            '</div>' +
-            '</div>' +
-            '</div>' +
-            '</div>');
+    ResosDecoratorDiagramDesignerWidget.prototype._detailDialogUIDOMBase = $(codeEditorDialogTemplate);
 
     /**** Override from DiagramDesignerWidgetDecoratorBase ****/
     ResosDecoratorDiagramDesignerWidget.prototype.on_addTo = function () {
@@ -163,53 +156,72 @@ define([
             this.skinParts.$detailButton.show();
 
             this.skinParts.$detailButton.on("click.showDialog", null, function (event) {
-                var dialog = $(ResosDecoratorDiagramDesignerWidget.prototype._detailDialogUIDOMBase.clone());
-                var codeEditor = $('.codeEditor', dialog)[0];
-                var defAttr = currentNode.getAttribute('Definition');
-                $(codeEditor).val(defAttr);
+                var idlEditorModal,
+                   myScope = rootScope.$new(true);
+                   myScope.thingName = 'alma';
 
-                dialog.on('shown.bs.modal', function () {
-                    CodeMirror.fromTextArea(codeEditor, {
-                        lineNumbers: true,
-                        matchBrackets: true,
-                        mode: "text/x-csharp"
-                    });
+                idlEditorModal = ngCodeEditorDialog.open( {
+                    dialogTitle: 'Confirm delete',
+                    dialogContentTemplate: 'DeleteDialogTemplate.html',
+                    onOk: function () {
+                        alert('kukucs');
+                    },
+                    scope: myScope
+                } );
 
+                idlEditorModal.result.then( function () {
+                    self._dialog.modal( 'show' );
+                }, function () {
+                    self._dialog.modal( 'show' );
+                } );
 
-                    var messagewindow = $('.messageWindow', dialog);
-                    messagewindow.jqGrid({
-                        datatype: "local",
-                        height: 250,
-                        colNames: ['Inv No', 'Date', 'Client', 'Amount', 'Tax', 'Total', 'Notes'],
-                        colModel: [
-                            {name: 'id', index: 'id', width: 60, sorttype: "int"},
-                            {name: 'invdate', index: 'invdate', width: 90, sorttype: "date"},
-                            {name: 'name', index: 'name', width: 100},
-                            {name: 'amount', index: 'amount', width: 80, align: "right", sorttype: "float"},
-                            {name: 'tax', index: 'tax', width: 80, align: "right", sorttype: "float"},
-                            {name: 'total', index: 'total', width: 80, align: "right", sorttype: "float"},
-                            {name: 'note', index: 'note', width: 150, sortable: false}
-                        ],
-                        multiselect: true,
-                        caption: "Manipulating Array Data"
-                    });
-                    var mydata = [
-                        {id: "1", invdate: "2007-10-01", name: "test", note: "note", amount: "200.00", tax: "10.00", total: "210.00"},
-                        {id: "2", invdate: "2007-10-02", name: "test2", note: "note2", amount: "300.00", tax: "20.00", total: "320.00"},
-                        {id: "3", invdate: "2007-09-01", name: "test3", note: "note3", amount: "400.00", tax: "30.00", total: "430.00"},
-                        {id: "4", invdate: "2007-10-04", name: "test", note: "note", amount: "200.00", tax: "10.00", total: "210.00"},
-                        {id: "5", invdate: "2007-10-05", name: "test2", note: "note2", amount: "300.00", tax: "20.00", total: "320.00"},
-                        {id: "6", invdate: "2007-09-06", name: "test3", note: "note3", amount: "400.00", tax: "30.00", total: "430.00"},
-                        {id: "7", invdate: "2007-10-04", name: "test", note: "note", amount: "200.00", tax: "10.00", total: "210.00"},
-                        {id: "8", invdate: "2007-10-03", name: "test2", note: "note2", amount: "300.00", tax: "20.00", total: "320.00"},
-                        {id: "9", invdate: "2007-09-01", name: "test3", note: "note3", amount: "400.00", tax: "30.00", total: "430.00"}
-                    ];
-                    for (var i = 0; i <= mydata.length; i++) {
-                        messagewindow.jqGrid('addRowData', i + 1, mydata[i]);
-                    }
-
-                    codeEditor.focus();
-                });
+//                var dialog = $(ResosDecoratorDiagramDesignerWidget.prototype._detailDialogUIDOMBase.clone());
+//                var codeEditor = $('.codeEditor', dialog)[0];
+//                var defAttr = currentNode.getAttribute('Definition');
+//                $(codeEditor).val(defAttr);
+//
+//                dialog.on('shown.bs.modal', function () {
+//                    CodeMirror.fromTextArea(codeEditor, {
+//                        lineNumbers: true,
+//                        matchBrackets: true,
+//                        mode: "text/x-csharp"
+//                    });
+//
+//
+//                    var messagewindow = $('.messageWindow', dialog);
+//                    messagewindow.jqGrid({
+//                        datatype: "local",
+//                        height: 250,
+//                        colNames: ['Inv No', 'Date', 'Client', 'Amount', 'Tax', 'Total', 'Notes'],
+//                        colModel: [
+//                            {name: 'id', index: 'id', width: 60, sorttype: "int"},
+//                            {name: 'invdate', index: 'invdate', width: 90, sorttype: "date"},
+//                            {name: 'name', index: 'name', width: 100},
+//                            {name: 'amount', index: 'amount', width: 80, align: "right", sorttype: "float"},
+//                            {name: 'tax', index: 'tax', width: 80, align: "right", sorttype: "float"},
+//                            {name: 'total', index: 'total', width: 80, align: "right", sorttype: "float"},
+//                            {name: 'note', index: 'note', width: 150, sortable: false}
+//                        ],
+//                        multiselect: true,
+//                        caption: "Manipulating Array Data"
+//                    });
+//                    var mydata = [
+//                        {id: "1", invdate: "2007-10-01", name: "test", note: "note", amount: "200.00", tax: "10.00", total: "210.00"},
+//                        {id: "2", invdate: "2007-10-02", name: "test2", note: "note2", amount: "300.00", tax: "20.00", total: "320.00"},
+//                        {id: "3", invdate: "2007-09-01", name: "test3", note: "note3", amount: "400.00", tax: "30.00", total: "430.00"},
+//                        {id: "4", invdate: "2007-10-04", name: "test", note: "note", amount: "200.00", tax: "10.00", total: "210.00"},
+//                        {id: "5", invdate: "2007-10-05", name: "test2", note: "note2", amount: "300.00", tax: "20.00", total: "320.00"},
+//                        {id: "6", invdate: "2007-09-06", name: "test3", note: "note3", amount: "400.00", tax: "30.00", total: "430.00"},
+//                        {id: "7", invdate: "2007-10-04", name: "test", note: "note", amount: "200.00", tax: "10.00", total: "210.00"},
+//                        {id: "8", invdate: "2007-10-03", name: "test2", note: "note2", amount: "300.00", tax: "20.00", total: "320.00"},
+//                        {id: "9", invdate: "2007-09-01", name: "test3", note: "note3", amount: "400.00", tax: "30.00", total: "430.00"}
+//                    ];
+//                    for (var i = 0; i <= mydata.length; i++) {
+//                        messagewindow.jqGrid('addRowData', i + 1, mydata[i]);
+//                    }
+//
+//                    codeEditor.focus();
+//                });
 
                 dialog.modal('show');
 
@@ -261,7 +273,6 @@ define([
                 var currentNodeOffset = currentNode.getAttribute('NodeSchedule');
 
                 partitionList = partitionList.concat('PP',i,':',childNodeName,';');
-                //tableOne.jqGrid('addRowData', i + 1, {id:i, partitionName:childNodeName, offset:currentNodeOffset});
             }
 
             var prmDel={

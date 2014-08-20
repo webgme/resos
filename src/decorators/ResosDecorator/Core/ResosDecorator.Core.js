@@ -4,9 +4,9 @@
  * Author: Robert Kereskenyi
  */
 
-"use strict";
-
-define(['js/Constants',
+define([
+    'angular',
+    'js/Constants',
     'js/NodePropertyNames',
     'js/RegistryKeys',
     'loaderProgressBar',
@@ -15,7 +15,8 @@ define(['js/Constants',
     'js/Decorators/DecoratorWithPorts.Base',
     'js/Utils/DisplayFormat',
     'js/Utils/GMEConcepts',
-    'js/Controls/ContextMenu'], function (CONSTANTS,
+    'js/Controls/ContextMenu'], function (ng,
+                         CONSTANTS,
                          nodePropertyNames,
                          REGISTRY_KEYS,
                          LoaderProgressBar,
@@ -25,6 +26,8 @@ define(['js/Constants',
                          displayFormat,
                          GMEConcepts,
                          ContextMenu) {
+
+        "use strict";
 
         var ResosDecoratorCore,
         ABSTRACT_CLASS = 'abstract',
@@ -211,7 +214,7 @@ define(['js/Constants',
                     nodeObj = client.getNode(toId);
                 }
 				
-				// 2: Get the allowedPorts
+				// 2: Get the allowedPorts (show ports which are members of the configuration set)
                 var parentChildrenIds = parentNode.getChildrenIds().slice(0);
                 for (var i = 0; i<parentChildrenIds.length; i++){
                     var childrenNode = client.getNode(parentChildrenIds[i]);
@@ -243,11 +246,14 @@ define(['js/Constants',
                                     if (hasAspect && !GMEConcepts.isValidTypeInAspect(childrenIDs[len], gmeID, this._aspect)) {
                                         childrenIDs.splice(len, 1);
                                     }
+
+                                    // if the port is not in the configuration set -> do not show
                                     else if (memberIds.indexOf(childrenIDs[len]) === -1) {
                                         childrenIDs.splice(len, 1);
                                     }
                                 }
                             }
+                            break;
                         }
                     }
                 }
