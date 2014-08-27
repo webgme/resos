@@ -17,6 +17,7 @@ define([
     'isis-ui-components/simpleDialog/simpleDialog',
     '../Lib/codemirror/codemirror',
     '../Lib/codemirror/clike',
+    '../Lib/ui-codemirror/ui-codemirror.js',
     '../Lib/jqgrid/js/i18n/grid.locale-en.js',
     '../Lib/jqgrid/js/jquery.jqGrid.min.js',
     'css!./ResosDecorator.DiagramDesignerWidget',
@@ -43,6 +44,8 @@ define([
 
     "use strict";
 
+    window.CodeMirror = CodeMirror;
+
     var ResosDecoratorDiagramDesignerWidget,
         SVG_DIR = "/decorators/ResosDecorator/Icons/",
         EMBEDDED_SVG_IMG_BASE_CLASS ='detailButtonSvg',
@@ -52,15 +55,7 @@ define([
         DECORATOR_ID = "ResosDecoratorDiagramDesignerWidget",
         PORT_CONTAINER_OFFSET_Y = 15,
         ACCEPT_DROPPABLE_CLASS = 'accept-droppable',
-        DRAGGABLE_MOUSE = 'DRAGGABLE',
-        ngCodeEditorDialog,
-        rootScope;
-
-    angular.module( 'resos.ui.idleditor', ['isis.ui.simpleDialog'] ).run( function ( $simpleDialog, $templateCache, $rootScope ) {
-        ngCodeEditorDialog = $simpleDialog;
-        $templateCache.put('CodeEditorDialogTemplate.html', codeEditorDialogTemplate);
-        rootScope = $rootScope;
-    } );
+        DRAGGABLE_MOUSE = 'DRAGGABLE';
 
     ResosDecoratorDiagramDesignerWidget = function (options) {
         var opts = _.extend( {}, options);
@@ -107,11 +102,15 @@ define([
         var parentMetaNode = this._control._client.getNode(parentMetaId);
         var parentMetaGuid = parentMetaNode.getGuid();
 
+//        var svgFile = 'DetailButton.svg';
+//        var svgFileHover = 'DetailButtonHover.svg';
+//        var imgElement = EMBEDDED_SVG_IMG_BASE.clone();
+
         this._renderContent();
 
         // Hide detail button
         // TODO: Hide by default.
-        this.skinParts.$detailButton.hide();
+        //this.skinParts.$detailButton.hide();
 
         // set title editable on double-click
         this.skinParts.$name.on("dblclick.editOnDblClick", null, function (event) {
@@ -126,54 +125,330 @@ define([
             event.preventDefault();
         });
 
-        // IDL thing
-        // TODO: What about refs?
-        if (parentMetaGuid === '6f1c7cfb-0cb8-4faa-8e07-f7e8a069efaa' && currentNode.getAttribute('Definition') !== undefined ) {
+        var isValid,
+            rootScope,
+            ngSimpleDialog,
+            parameter = {
+                value: 10,
+                invalid: true
+            };
 
-            var svgFile = 'DetailButton.svg';
-            var svgFileHover = 'DetailButtonHover.svg';
-
-            // get the svg from the server in SYNC mode, may take some time
-            var imgElement = EMBEDDED_SVG_IMG_BASE.clone();
-            this.skinParts.$detailButton.append(imgElement);
-            imgElement.attr('src', SVG_DIR + svgFile);
-
-            imgElement = EMBEDDED_SVG_IMG_BASE_HOVER.clone();
-            this.skinParts.$detailButton.append(imgElement);
-            imgElement.attr('src', SVG_DIR + svgFileHover);
-            imgElement.hide();
-
-            this.skinParts.$detailButton.hover(
-                function() {
-                    $('img.'+EMBEDDED_SVG_IMG_BASE_CLASS, this).hide();
-                    $('img.'+EMBEDDED_SVG_IMG_BASE_HOVER_CLASS,this).show();
+        angular.module('resos.ui.scheduleEditor', []).directive('ngJqGrid', function () {
+            return {
+                restrict: 'E',
+                scope: {
+                    config: '=',
+                    data: '=',
+                    results: '='
                 },
-                function() {
-                    $('img.'+EMBEDDED_SVG_IMG_BASE_CLASS, this).show();
-                    $('img.'+EMBEDDED_SVG_IMG_BASE_HOVER_CLASS, this).hide();
+                link: function (scope, element, attrs) {
+                    var tableElement,
+                        gridPagerElement;
+
+                    scope.$watch('results', function (newValue) {
+                        console.log('results');
+                    });
+
+                    scope.$watch('config', function (newValue) {
+                        var table;
+
+                        element.children().empty();
+                        tableElement = angular.element('<table></table>');
+                        gridPagerElement = angular.element('<div id="gridpager"></div>');
+                        element.append(tableElement);
+                        element.append(gridPagerElement);
+
+                        table = $(tableElement).jqGrid(newValue);
+
+                        var prmDel={
+                            onclickSubmit: function (options, rowid) {
+                                var $this = $(this),
+                                    grid_id = $.jgrid.jqID(this.id),
+                                    grid_p = this.p,
+                                    newPage = grid_p.page;
+
+                                // reset the value of processing option to true to
+                                // skip the ajax request to 'clientArray'.
+                                options.processing = true;
+
+                                // delete the row
+                                if (grid_p.treeGrid) {
+                                    $this.jqGrid("delTreeNode", rowid);
+                                } else {
+                                    $this.jqGrid("delRowData", rowid);
+                                }
+                                $.jgrid.hideModal("#delmod" + grid_id, {
+                                    gb: "#gbox_" + grid_id,
+                                    jqm: options.jqModal,
+                                    onClose: options.onClose
+                                });
+
+                                if (grid_p.lastpage > 1) {// on the multipage grid reload the grid
+                                    if (grid_p.reccount === 0 && newPage === grid_p.lastpage) {
+                                        newPage--; // go to the previous page
+                                    }
+                                    // reload grid to make the row from the next page visable.
+                                    $this.trigger("reloadGrid", [{page: newPage}]);
+                                }
+
+                                scope.results.resultData = table.jqGrid('getGridParam','data');
+
+                                return true;
+                            },
+                            processing: true
+                        };
+                        var prmSearch={};
+                        var prmView={};
+                        var prmEdit ={};
+                        var prmAdd={};
+
+                        table.jqGrid('navGrid','#gridpager',
+                            { view:false, del:true, add:false, refresh:false, search:false, edit:false },
+                            prmEdit,
+                            prmAdd,
+                            prmDel,
+                            prmSearch,
+                            prmView);
+
+                        table.jqGrid('inlineNav', '#gridpager',
+                            {
+                                addParams: {position: "last"},
+                                editParams : {
+                                    aftersavefunc : function(){
+                                        scope.results.resultData = table.jqGrid('getGridParam','data');
+                                    }
+                                }
+                            });
+                    });
+
+                    scope.$watch('data', function (newValue, oldValue) {
+                        var i;
+                        for (i = oldValue.length - 1; i >= 0; i--) {
+                            $(tableElement).jqGrid('delRowData', i);
+                        }
+                        for (i = 0; i < newValue.length; i++) {
+                            $(tableElement).jqGrid('addRowData', i, newValue[i]);
+                        }
+                    });
+                }
+            };
+        });
+
+        angular.module( 'resos.ui.simpleDialog.demo', ['resos.ui.scheduleEditor','isis.ui.simpleDialog','ui.codemirror'])
+            .run( function ( $simpleDialog, $templateCache, $rootScope ) {
+                ngSimpleDialog = $simpleDialog;
+                $templateCache.put('CodeEditorDialogTemplate', codeEditorDialogTemplate);
+                $templateCache.put('ScheduleEditorDialogTemplate', scheduleDialogTemplate);
+                rootScope = $rootScope;
+            })
+            .controller( 'ResosDecoratorController', function ( $scope, $simpleDialog ) {
+                $scope.hasDetailButton =
+                    (( parentMetaGuid === '6f1c7cfb-0cb8-4faa-8e07-f7e8a069efaa' && currentNode.getAttribute('Definition') !== undefined) ||
+                       parentMetaGuid === '9f170e00-1852-44ca-bb17-5929e8763de4' && currentMetaName === 'Schedule');
+
+                $scope.openDialog = function () {
+                    var dialogContent = '',
+                        dialogTitle = '',
+                        isCodeEditor = false,
+                        isScheduling = false,
+                        defAttr = currentNode.getAttribute('Definition'),
+
+                        partitionPortIds = [],
+                        partitionList = '',
+
+                        childId = '',
+                        childNode,
+                        childNodeName = '',
+                        childNodeDuration ='',
+                        childNodePeriod = '',
+                        currentNodeOffset = ''
+                        ;
+
+                    if (parentMetaGuid === '6f1c7cfb-0cb8-4faa-8e07-f7e8a069efaa' && currentNode.getAttribute('Definition') !== undefined) {
+                        dialogContent = 'CodeEditorDialogTemplate';
+                        dialogTitle = 'IDL Editor';
+                        isCodeEditor = true;
+                        $scope.sourceObject = {};
+                        $scope.sourceObject.sourceCode = defAttr;
+                        $scope.editorOptions = {
+                            lineWrapping : true,
+                            lineNumbers: true,
+                            mode: 'text/x-csharp'
+                        };
+                    } else if (parentMetaGuid === '9f170e00-1852-44ca-bb17-5929e8763de4' && currentMetaName === 'Schedule'){
+                        partitionPortIds = currentNode.getChildrenIds();
+
+                        for (var i = 0; i < partitionPortIds.length; i++) {
+                            childId = partitionPortIds[i];
+                            childNode = self._control._client.getNode(childId);
+                            childNodeName = childNode.getAttribute('name');
+                            childNodeDuration = childNode.getAttribute('Duration');
+                            childNodePeriod = childNode.getAttribute('Period');
+                            currentNodeOffset = currentNode.getAttribute('NodeSchedule');
+
+                            partitionList = partitionList.concat('PP',i,':',childNodeName,';');
+                        }
+
+                        dialogContent = 'ScheduleEditorDialogTemplate';
+                        dialogTitle = 'Set scheduling';
+                        isScheduling = true;
+
+                        $scope.config = {
+                            datatype: 'local',
+                            editurl:'clientArray',
+                            colNames: ['Id','Partition name', 'Offset'],
+                            colModel: [
+                                {name: 'id', index: 'id', width: 40},
+                                {name: 'partitionName', index: 'partitionName', width: 280,editable:true, edittype:"select",editoptions:{value:partitionList}},
+                                {name: 'offset', index: 'offset', width: 80, sorttype: "int",editable:true}
+                            ],
+                            multiselect: false,
+                            caption: "Partition",
+                            pager : '#gridpager',
+                            emptyrecords: "Nothing to display"
+                        };
+
+                        var nodeScheduleJson = currentNode.getAttribute('NodeSchedule');
+                        if (nodeScheduleJson==='' || nodeScheduleJson===undefined || nodeScheduleJson===null){
+                            nodeScheduleJson='[]';
+                        }
+
+                        var nodeSchedule = $.parseJSON(nodeScheduleJson);
+
+                        if (nodeSchedule === undefined || nodeSchedule === null || nodeSchedule === -1){
+                            nodeSchedule = [];
+                        }
+
+                        $scope.data = [];
+                        $scope.results = {};
+                        $scope.results.resultData = [];
+
+                        for (var j = 0; j < nodeSchedule.length; j++) {
+                            $scope.data.push(nodeSchedule[j]);
+                        }
+                    } else {
+                        return;
+                    }
+
+                    var sd = $simpleDialog.open({
+                        dialogTitle: dialogTitle,
+                        dialogContentTemplate: dialogContent,
+                        onOk: function () {
+                            var jsonData;
+                            if (isCodeEditor) {
+                                self._control._client.setAttributes(gmeId, 'Definition', $scope.sourceObject.sourceCode);
+                            } else if (isScheduling){
+                                jsonData = JSON.stringify($scope.results.resultData);
+                                self._control._client.setAttributes(gmeId, 'NodeSchedule', jsonData);
+                            }
+                        },
+                        onCancel: function () {
+                            console.log('This was canceled');
+                        },
+                        validator: isValid,
+                        size: 'lg',
+                        scope: $scope
+                    });
+                };
             });
 
-            this.skinParts.$detailButton.show();
+        angular.bootstrap(this.$el, ['resos.ui.simpleDialog.demo']);
 
-            this.skinParts.$detailButton.on("click.showDialog", null, function (event) {
-                var idlEditorModal,
-                   myScope = rootScope.$new(true);
-                   myScope.thingName = 'alma';
+        // IDL thing
+        // Todo: What about refs?
+//        if (parentMetaGuid === '6f1c7cfb-0cb8-4faa-8e07-f7e8a069efaa' && currentNode.getAttribute('Definition') !== undefined ) {
+//            console.log('IDL');
+//            this.skinParts.$detailButton.append(imgElement);
+//            imgElement.attr('src', SVG_DIR + svgFile);
+//            imgElement = EMBEDDED_SVG_IMG_BASE_HOVER.clone();
+//            this.skinParts.$detailButton.append(imgElement);
+//            imgElement.attr('src', SVG_DIR + svgFileHover);
+//            imgElement.hide();
 
-                idlEditorModal = ngCodeEditorDialog.open( {
-                    dialogTitle: 'Confirm delete',
-                    dialogContentTemplate: 'DeleteDialogTemplate.html',
-                    onOk: function () {
-                        alert('kukucs');
-                    },
-                    scope: myScope
-                } );
+//            this.skinParts.$detailButton.hover(
+//                function() {
+//                    $('img.'+EMBEDDED_SVG_IMG_BASE_CLASS, this).hide();
+//                    $('img.'+EMBEDDED_SVG_IMG_BASE_HOVER_CLASS,this).show();
+//                },
+//                function() {
+//                    $('img.'+EMBEDDED_SVG_IMG_BASE_CLASS, this).show();
+//                    $('img.'+EMBEDDED_SVG_IMG_BASE_HOVER_CLASS, this).hide();
+//            });
 
-                idlEditorModal.result.then( function () {
-                    self._dialog.modal( 'show' );
-                }, function () {
-                    self._dialog.modal( 'show' );
-                } );
+
+
+//            var resosDialogModal,
+//                myScope = rootScope.$new(true);
+//
+//            myScope.sourceCode = 'alma';
+//
+//            resosDialogModal = ngSimpleDialog.open( {
+//                dialogTitle: 'Confirm delete',
+//                dialogContentTemplate: 'CodeEditorDialogTemplate',
+//                onOk: function () {
+//
+//                },
+//                scope: myScope
+//            } );
+//            console.log($scope);
+            //resosDialogModal.modal( 'show' );
+
+//            resosDialog.controller( 'ConfirmDialogDemoController', function ( $scope, $simpleDialog ) {
+//                isValid = function ($scope) {
+//                    var result = (Number(parameter.value) === 4);
+//                    console.log('Validator was called');
+//                    console.log('Sum is: ' + parameter.value, result);
+//                    parameter.invalid = !result;
+//                    return result;
+//                };
+//
+//                $scope.gridOptions = {
+//                    data: 'myData',
+//                    columnDefs: [{field: 'name', displayName: 'Name'}, {field:'age', displayName:'Age'}, {field: 'remove', displayName:''}]
+//                };
+//                $scope.myData = [{name: "Moroni", age: 50},
+//                    {name: "Tiancum", age: 43},
+//                    {name: "Jacob", age: 27},
+//                    {name: "Nephi", age: 29},
+//                    {name: "Enos", age: 34}];
+//
+//                $scope.parameter = parameter;
+//                $scope.isValid = function () {
+//                    isValid();
+//                    if (!$scope.$$phase) {
+//                        $scope.$apply();
+//                    }
+//                };
+//
+//                $scope.sourceCode='alma';
+//
+//                $scope.openDialog = function () {
+//
+//                    $simpleDialog.open({
+//                        dialogTitle: 'Are you sure?',
+//                        dialogContentTemplate: 'codeEditor-template',
+//                        onOk: function () {
+//                            console.log('OK was picked');
+//                        },
+//                        onCancel: function () {
+//                            console.log('This was canceled');
+//                        },
+//                        validator: isValid,
+//                        size: 'lg', // can be sm or lg
+//                        scope: $scope
+//                    });
+//                };
+//            });
+
+
+            //angular.bootstrap('resos.ui.simpleDialog.demo');
+           // angular.module('resos.ui.simpleDialog.demo');
+
+
+            // this.skinParts.$detailButton.show();
+
+            //this.skinParts.$detailButton.on("click.showDialog", null, function (event) {
+
 
 //                var dialog = $(ResosDecoratorDiagramDesignerWidget.prototype._detailDialogUIDOMBase.clone());
 //                var codeEditor = $('.codeEditor', dialog)[0];
@@ -223,163 +498,155 @@ define([
 //                    codeEditor.focus();
 //                });
 
-                dialog.modal('show');
+                //dialog.modal('show');
 
-                event.stopPropagation();
-                event.preventDefault();
-            });
-        }
-
+                //event.stopPropagation();
+               // event.preventDefault();
+            //});
+//        }
         // Partition schedule
-        else if (parentMetaGuid === '9f170e00-1852-44ca-bb17-5929e8763de4' && currentMetaName === 'Schedule')
-        {
-            var svgFile = 'DetailButton.svg';
-            var svgFileHover = 'DetailButtonHover.svg';
+//        else if (parentMetaGuid === '9f170e00-1852-44ca-bb17-5929e8763de4' && currentMetaName === 'Schedule1111')
+//        {
+//            this.skinParts.$detailButton.append(imgElement);
+//            imgElement.attr('src', SVG_DIR + svgFile);
+//
+//            imgElement = EMBEDDED_SVG_IMG_BASE_HOVER.clone();
+//            this.skinParts.$detailButton.append(imgElement);
+//            imgElement.attr('src', SVG_DIR + svgFileHover);
+//            imgElement.hide();
+//
+//            this.skinParts.$detailButton.hover(
+//                function() {
+//                    $('img.'+EMBEDDED_SVG_IMG_BASE_CLASS, this).hide();
+//                    $('img.'+EMBEDDED_SVG_IMG_BASE_HOVER_CLASS,this).show();
+//                },
+//                function() {
+//                    $('img.'+EMBEDDED_SVG_IMG_BASE_CLASS, this).show();
+//                    $('img.'+EMBEDDED_SVG_IMG_BASE_HOVER_CLASS, this).hide();
+//                });
 
-            // get the svg from the server in SYNC mode, may take some time
-            var imgElement = EMBEDDED_SVG_IMG_BASE.clone();
-            this.skinParts.$detailButton.append(imgElement);
-            imgElement.attr('src', SVG_DIR + svgFile);
-
-            imgElement = EMBEDDED_SVG_IMG_BASE_HOVER.clone();
-            this.skinParts.$detailButton.append(imgElement);
-            imgElement.attr('src', SVG_DIR + svgFileHover);
-            imgElement.hide();
-
-            this.skinParts.$detailButton.hover(
-                function() {
-                    $('img.'+EMBEDDED_SVG_IMG_BASE_CLASS, this).hide();
-                    $('img.'+EMBEDDED_SVG_IMG_BASE_HOVER_CLASS,this).show();
-                },
-                function() {
-                    $('img.'+EMBEDDED_SVG_IMG_BASE_CLASS, this).show();
-                    $('img.'+EMBEDDED_SVG_IMG_BASE_HOVER_CLASS, this).hide();
-                });
-
-            this.skinParts.$detailButton.show();
-
-            var dialog = $(scheduleDialogTemplate).modal({
-                show:false
-            });
-
-            var partitionPortIds = currentNode.getChildrenIds();
-            var partitionList = '';
-            for (var i = 0; i < partitionPortIds.length; i++) {
-                var childId = partitionPortIds[i];
-                var childNode = self._control._client.getNode(childId);
-                var childNodeName = childNode.getAttribute('name');
-                var childNodeDuration = childNode.getAttribute('Duration');
-                var childNodePeriod = childNode.getAttribute('Period');
-                var currentNodeOffset = currentNode.getAttribute('NodeSchedule');
-
-                partitionList = partitionList.concat('PP',i,':',childNodeName,';');
-            }
-
-            var prmDel={
-                onclickSubmit: function (options, rowid) {
-                    var $this = $(this),
-                        grid_id = $.jgrid.jqID(this.id),
-                        grid_p = this.p,
-                        newPage = grid_p.page;
-
-                    // reset the value of processing option to true to
-                    // skip the ajax request to 'clientArray'.
-                    options.processing = true;
-
-                    // delete the row
-                    if (grid_p.treeGrid) {
-                        $this.jqGrid("delTreeNode", rowid);
-                    } else {
-                        $this.jqGrid("delRowData", rowid);
-                    }
-                    $.jgrid.hideModal("#delmod" + grid_id, {
-                        gb: "#gbox_" + grid_id,
-                        jqm: options.jqModal,
-                        onClose: options.onClose
-                    });
-
-                    if (grid_p.lastpage > 1) {// on the multipage grid reload the grid
-                        if (grid_p.reccount === 0 && newPage === grid_p.lastpage) {
-                            // if after deliting there are no rows on the current page
-                            // which is the last page of the grid
-                            newPage--; // go to the previous page
-                        }
-                        // reload grid to make the row from the next page visable.
-                        $this.trigger("reloadGrid", [{page: newPage}]);
-                    }
-
-                    return true;
-                },
-                processing: true
-            };
-            var prmSearch={};
-            var prmView={};
-            var prmEdit ={};
-            var prmAdd={};
-
-            dialog.on('shown.bs.modal', function () {
-                var tableWrapper = $('div.tableWrapperOne', dialog);
-                tableWrapper.empty();
-                tableWrapper.append('<table id="tableOne"></table><div id="gridpager"></div>');
-
-                var tableOne = $('#tableOne', tableWrapper);
-
-                tableOne.jqGrid({
-                    datatype: 'local',
-                    editurl:'clientArray',
-                    colNames: ['Id','Partition name', 'Offset'],
-                    colModel: [
-                        {name: 'id', index: 'id', width: 40},
-                        {name: 'partitionName', index: 'partitionName', width: 280,editable:true, edittype:"select",editoptions:{value:partitionList}},
-                        {name: 'offset', index: 'offset', width: 80, sorttype: "int",editable:true},
-                    ],
-                    multiselect: false,
-                    caption: "Partition",
-                    pager : '#gridpager',
-                    emptyrecords: "Nothing to display"
-                });
-
-                tableOne.jqGrid('navGrid','#gridpager',
-                    { view:false, del:true, add:false, refresh:false, search:false, edit:false },
-                    prmEdit,
-                    prmAdd,
-                    prmDel,
-                    prmSearch,
-                    prmView);
-                tableOne.jqGrid('inlineNav', '#gridpager', {addParams: {position: "last"}});
-
-                var nodeScheduleJson = currentNode.getAttribute('NodeSchedule');
-                if (nodeScheduleJson==='' || nodeScheduleJson===undefined || nodeScheduleJson===null){
-                    nodeScheduleJson='[]';
-                }
-
-                var nodeSchedule = $.parseJSON(nodeScheduleJson);
-
-                if (nodeSchedule === undefined || nodeSchedule === null || nodeSchedule === -1){
-                    nodeSchedule = [];
-                }
-
-                for (var i = 0; i < nodeSchedule.length; i++) {
-                    tableOne.jqGrid('addRowData', i + 1, nodeSchedule[i]);
-                }
-            });
-
-            dialog.on('hide.bs.modal', function (e) {
-                var tableWrapper = $('div.tableWrapperOne', dialog);
-                var tableOne = $('#tableOne', tableWrapper);
-                var dataFromGrid = tableOne.jqGrid('getGridParam','data');
-                var jsonData = JSON.stringify(dataFromGrid);
-                self._control._client.setAttributes(gmeId, 'NodeSchedule', jsonData);
-                $('div.tableWrapperOne', dialog).empty();
-            });
-
-            this.skinParts.$detailButton.on("click.showDialog", null, function (event) {
-                dialog.modal('show');
-
-                event.stopPropagation();
-                event.preventDefault();
-            });
-        }
+//            this.skinParts.$detailButton.show();
+//
+//            var dialog = $(scheduleDialogTemplate).modal({
+//                show:false
+//            });
+//
+//            var partitionPortIds = currentNode.getChildrenIds();
+//            var partitionList = '';
+//            for (var i = 0; i < partitionPortIds.length; i++) {
+//                var childId = partitionPortIds[i];
+//                var childNode = self._control._client.getNode(childId);
+//                var childNodeName = childNode.getAttribute('name');
+//                var childNodeDuration = childNode.getAttribute('Duration');
+//                var childNodePeriod = childNode.getAttribute('Period');
+//                var currentNodeOffset = currentNode.getAttribute('NodeSchedule');
+//
+//                partitionList = partitionList.concat('PP',i,':',childNodeName,';');
+//            }
+//
+//            var prmDel={
+//                onclickSubmit: function (options, rowid) {
+//                    var $this = $(this),
+//                        grid_id = $.jgrid.jqID(this.id),
+//                        grid_p = this.p,
+//                        newPage = grid_p.page;
+//
+//                    // reset the value of processing option to true to
+//                    // skip the ajax request to 'clientArray'.
+//                    options.processing = true;
+//
+//                    // delete the row
+//                    if (grid_p.treeGrid) {
+//                        $this.jqGrid("delTreeNode", rowid);
+//                    } else {
+//                        $this.jqGrid("delRowData", rowid);
+//                    }
+//                    $.jgrid.hideModal("#delmod" + grid_id, {
+//                        gb: "#gbox_" + grid_id,
+//                        jqm: options.jqModal,
+//                        onClose: options.onClose
+//                    });
+//
+//                    if (grid_p.lastpage > 1) {// on the multipage grid reload the grid
+//                        if (grid_p.reccount === 0 && newPage === grid_p.lastpage) {
+//                            newPage--; // go to the previous page
+//                        }
+//                        // reload grid to make the row from the next page visable.
+//                        $this.trigger("reloadGrid", [{page: newPage}]);
+//                    }
+//
+//                    return true;
+//                },
+//                processing: true
+//            };
+//            var prmSearch={};
+//            var prmView={};
+//            var prmEdit ={};
+//            var prmAdd={};
+//
+//            dialog.on('shown.bs.modal', function () {
+//                var tableWrapper = $('div.tableWrapperOne', dialog);
+//                tableWrapper.empty();
+//                tableWrapper.append('<table id="tableOne"></table><div id="gridpager"></div>');
+//
+//                var tableOne = $('#tableOne', tableWrapper);
+//
+//                tableOne.jqGrid({
+//                    datatype: 'local',
+//                    editurl:'clientArray',
+//                    colNames: ['Id','Partition name', 'Offset'],
+//                    colModel: [
+//                        {name: 'id', index: 'id', width: 40},
+//                        {name: 'partitionName', index: 'partitionName', width: 280,editable:true, edittype:"select",editoptions:{value:partitionList}},
+//                        {name: 'offset', index: 'offset', width: 80, sorttype: "int",editable:true}
+//                    ],
+//                    multiselect: false,
+//                    caption: "Partition",
+//                    pager : '#gridpager',
+//                    emptyrecords: "Nothing to display"
+//                });
+//
+//                tableOne.jqGrid('navGrid','#gridpager',
+//                    { view:false, del:true, add:false, refresh:false, search:false, edit:false },
+//                    prmEdit,
+//                    prmAdd,
+//                    prmDel,
+//                    prmSearch,
+//                    prmView);
+//                tableOne.jqGrid('inlineNav', '#gridpager', {addParams: {position: "last"}});
+//
+//                var nodeScheduleJson = currentNode.getAttribute('NodeSchedule');
+//                if (nodeScheduleJson==='' || nodeScheduleJson===undefined || nodeScheduleJson===null){
+//                    nodeScheduleJson='[]';
+//                }
+//
+//                var nodeSchedule = $.parseJSON(nodeScheduleJson);
+//
+//                if (nodeSchedule === undefined || nodeSchedule === null || nodeSchedule === -1){
+//                    nodeSchedule = [];
+//                }
+//
+//                for (var i = 0; i < nodeSchedule.length; i++) {
+//                    tableOne.jqGrid('addRowData', i + 1, nodeSchedule[i]);
+//                }
+//            });
+//
+//            dialog.on('hide.bs.modal', function (e) {
+//                var tableWrapper = $('div.tableWrapperOne', dialog);
+//                var tableOne = $('#tableOne', tableWrapper);
+//                var dataFromGrid = tableOne.jqGrid('getGridParam','data');
+//                var jsonData = JSON.stringify(dataFromGrid);
+//                self._control._client.setAttributes(gmeId, 'NodeSchedule', jsonData);
+//                $('div.tableWrapperOne', dialog).empty();
+//            });
+//
+//            this.skinParts.$detailButton.on("click.showDialog", null, function (event) {
+//                dialog.modal('show');
+//
+//                event.stopPropagation();
+//                event.preventDefault();
+//            });
+//        }
 
         // reference icon on double-click
         this.$el.on("dblclick.ptrDblClick", '.' + ResosDecoratorConstants.POINTER_CLASS, function (event) {

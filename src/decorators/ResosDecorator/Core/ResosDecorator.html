@@ -1,4 +1,4 @@
-<div class="resos-decorator">
+<div class="resos-decorator" data-ng-controller="ResosDecoratorController">
     <div class="name"></div>
     <div class="ports">
         <div class="left"></div>
@@ -7,8 +7,8 @@
     </div>
     <div class='connector bottom'></div>
     <div class='connector top'></div>
-    <div class='detailButton'>
-
+    <div class='detail-button' ng-click="openDialog()" ng-if="hasDetailButton">
+        <!--<img class="detail-button-svg">-->
+        <!--<img class="detail-button-hover-svg"  src="/decorators/ResosDecorator/Icons/DetailButtonHover.svg">-->
     </div>
-    <div class='detailDialog'></div>
 </div>

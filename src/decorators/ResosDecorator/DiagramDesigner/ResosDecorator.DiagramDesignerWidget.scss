@@ -6,13 +6,35 @@
 
 //imports
 @import "../Core/_ResosDecorator";
-@import "../../../scss/Widgets/DiagramDesigner/Connector";
+@import "../../../../node_modules/webgme/src/client/js/Widgets/DiagramDesigner/styles/Connector";
 
 //include ModelDecoratorCore style
 @include resos_decorator_core;
 
+.part-browser {
+  .resos-decorator {
+    .detail-button {
+      display: none;
+    }
+  }
+}
+
 //overwrite / extend with local modifications
 .resos-decorator {
+
+  -webkit-border-radius: 5px;
+  -moz-border-radius: 5px;
+  border-radius: 5px;
+
+  /*border: 1px solid black;*/
+  /*background-color: #ec54ea;  <--- Thisssssss*/
+
+  background: -moz-linear-gradient(top,  #1eadf9 0%, #1d7fb5 100%); /* FF3.6+ */
+  background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,#1eadf9), color-stop(100%,#1d7fb5)); /* Chrome,Safari4+ */
+  background: -webkit-linear-gradient(top,  #1eadf9 0%,#1d7fb5 100%); /* Chrome10+,Safari5.1+ */
+  background: -o-linear-gradient(top,  #1eadf9 0%,#1d7fb5 100%); /* Opera 11.10+ */
+  background: -ms-linear-gradient(top,  #1eadf9 0%,#1d7fb5 100%); /* IE10+ */
+  background: linear-gradient(to bottom,  #1eadf9 0%,#1d7fb5 100%); /* W3C */
 
   .connector {
     @include connector_basics;
@@ -28,6 +50,36 @@
       bottom: $connector-size / -2;
     }
   }
+
+  .detail-button {
+    width: 15px;
+    height: 15px;
+    position: absolute;
+    bottom: 2px;
+    right: 2px;
+    border: none;
+    background-image: url(../Icons/DetailButton.svg);
+    background-repeat: no-repeat;
+    background-position: center center;
+    background-size: 15px 15px;
+    cursor: pointer;
+
+    &:hover {
+      background-image: url(../Icons/DetailButtonHover.svg);
+
+    }
+  }
+
+
+//  .detail-button-svg {
+//    border: none;
+//    background-image: url(../Icons/DetailButton.svg);
+//    background-repeat: no-repeat;
+//    background-position: center center;
+//    background-size: 15px 15px;
+//    width: 15px;
+//    height: 15px;
+//  }
 
   .ports {
     .port {
